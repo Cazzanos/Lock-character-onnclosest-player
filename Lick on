@@ -1,0 +1,70 @@
+getgenv().lookAtEnabled = lockon -- Toggle pentru activare/dezactivare
+getgenv().wallCheckEnabled = false -- Toggle pentru verificarea zidurilor
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+
+-- Verifică dacă jucătorul este valid
+function isPlayerValid(player)
+    local character = player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") or not character:FindFirstChild("Head") then
+        return false
+    end
+
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid or humanoid.Health <= 0 then
+        return false
+    end
+
+    if getgenv().wallCheckEnabled then
+        local distance = (character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+        local ray = Ray.new(Camera.CFrame.Position, (character.HumanoidRootPart.Position - Camera.CFrame.Position).Unit * distance)
+        local part = workspace:FindPartOnRay(ray, LocalPlayer.Character, false, true)
+        if part and not part:IsDescendantOf(character) then
+            return false
+        end
+    end
+
+    return true
+end
+
+-- Obține cel mai apropiat jucător valid
+function getClosestPlayer()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and isPlayerValid(player) then
+            local character = player.Character
+            local distance = (character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+            if distance < shortestDistance then
+                closestPlayer = player
+                shortestDistance = distance
+            end
+        end
+    end
+
+    return closestPlayer
+end
+
+-- Face jucătorul local să se uite la țintă
+function lookAt(player)
+    if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local targetPosition = player.Character.HumanoidRootPart.Position
+        local myPosition = LocalPlayer.Character.HumanoidRootPart.Position
+        local lookDirection = (targetPosition - myPosition).Unit
+        LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(myPosition, myPosition + lookDirection)
+    end
+end
+
+-- Monitorizează și actualizează direcția de privire
+RunService.RenderStepped:Connect(function()
+    if getgenv().lookAtEnabled then
+        local target = getClosestPlayer()
+        if target then
+            lookAt(target)
+        end
+    end
+end)
